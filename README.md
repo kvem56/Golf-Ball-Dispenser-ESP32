@@ -1,15 +1,121 @@
-# Golf Ball Dispenser Project
-<span style="font-size:100px;"><b>Kaushik and Daniel's Golf Ball Dispenser Project:</b></span>
+# ⛳ Golf Ball Dispenser
+ 
+**A wave-to-dispense golf ball dispenser built on an ESP32, made by Kaushik and Daniel.**
+ 
+Wave a club (or a hand) in front of the sensor and a golf ball drops out, ready to hit. The remaining ball count is shown on a small display and can be updated from your phone.
+ 
+<p align="center">
+  <img width="725" height="676" alt="Circuit diagram of the golf ball dispenser" src="https://github.com/user-attachments/assets/001084fe-b140-46e9-b9bd-96bf11765db2" />
+</p>
+<p align="center"><em>Circuit diagram</em></p>
 
-<span style="font-size:72px;"><u><b>Circuit Diagram:</b></u></span>
+ 
+## Table of Contents
+ 
+- [Overview](#overview)
+- [How It Works](#how-it-works)
+- [Hardware](#hardware)
+- [Pin Connections](#pin-connections)
+- [Software Setup](#software-setup)
+- [Using the Control Panel](#using-the-control-panel)
+- [Design Notes and Challenges](#design-notes-and-challenges)
+- [Future Improvements](#future-improvements)
+- [Credits](#credits)
 
-![Circuit Diagram drawio](https://github.gatech.edu/user-attachments/assets/2a28a93a-7515-4850-aaca-feac487f06e4)
-
-
-
-Our code implemented code from the sweep.ino file from the ESP32Servo Library, however it ended up being changed drastically. Here is a link to sweep.ino: 
-[https://github.com/jkb-git/ESP32Servo](https://github.com/jkb-git/ESP32Servo/blob/master/examples/Sweep/Sweep.ino)
-
-<span style="font-size:72px;"><u><b>Report:</b></u></span>
-
-Our project is a golf ball dispenser made to react to a physical trigger and then dispense a golf ball in front of the user. The main use case for this project is for driving range practice. The way our project accomplishes this task is by using an ultrasonic sensor to detect movement and if the movement is within trigger range, measured by the echo length of the ultrasonic pulse, then a golf ball will dispense with the ESP32 LED changing colors to denote dispensing and not dispensing states. In order to integrate user customizability and ease of use, our project also tracks the number of balls in the bucket and broadcasts the count onto the uLCD display so the user can track how  many balls he/she/they have left. This is achieved by a questionnaire on a server that the project broadcasts on boot. The server will contain a question for the user to answer: "How many balls have you added since the last session?". This question accepts multiple responses: A number of added balls (which will be added to the previous stored count of balls) or "R" for reset to reset the count to 0 and then a new total number can be inputted to set the number of balls in the bucket. The questionnaire is able to be so simple because our project stores the total count of balls in non volatile memory. This allows the project to maintain an accurate reflection of balls in the bucket. We drew inspiration from the golf ball dispenser at Topgolf with the wave-to-dispense mechanism and the portability of helix shaped golf ball dispensers. Given that our project is constrained to a class project, we were able to focus on portability, as we needed to demonstrate this product to Professor Fratta at Klaus. We decided to use a servo to dispense the balls rather than a helix shaped conveyor is because we originally designed this project to be an attachment onto a standard range ball bucket. However, we ran into a couple roadblocks with that design. Mainly the 3d printing aspect. We had visions of grandeur with a 3d printed funnel to minimize jamming, however that proved to not be feasible with the 3d printers we had on hand. To solve this problem , we mounted the basket at a tilt so that balls would naturally flow down to the cutout hold and enter the drop chamber. A second issue we encountered was powering the project. We wanted to power the project through battery power, however we ran out of time to do so. It is very simple to do so if we had more time. That would have allowed the project to be truly portable. If we had more time we would have wanted to not only power the project through battery power, but also to switch from the WIFI server to a Bluetooth connection (as WIFI is spotty out on the range). Additionally, we would've liked to add some metric that would be able to provide feedback to the user based on the sound of their swing (pure, shank, top, ...). Lastly, if we had more time, we would have wanted to 3d print the chamber, casing for the breadboard, and funnel in order to minimize jamming with the golf balls. Overall this project was a success and we plan on bringing the product to retailers worldwide to help golfers of all skill levels improve their driving skills.
+ 
+## Overview
+ 
+The main use case is **driving range practice**. We took inspiration from the wave-to-dispense mechanism at Topgolf and from portable helix-style ball dispensers. The result is a compact, servo-driven dispenser that:
+ 
+- Detects motion with an **ultrasonic sensor** and dispenses one ball per trigger
+- Shows **green** on the ESP32's onboard LED while dispensing and **red** when idle
+- Tracks the **number of balls left** and shows it on a **uLCD display**
+- **Remembers the count** across power cycles using the ESP32's non-volatile memory
+- Hosts a simple **WiFi control panel** so the count can be set without reflashing
+## How It Works
+ 
+1. **Detect.** The ultrasonic sensor continuously measures distance. When something comes within trigger range, a dispense is queued.
+2. **Dispense.** The servo sweeps from 0° to 190° in 10° steps, releasing one ball into the drop chamber, then returns to 0°. The count drops by one and is saved to non-volatile memory.
+3. **Re-arm.** The sensor will not fire again until the object moves back out of range, so a single wave only dispenses a single ball.
+4. **Display.** The uLCD shows the remaining count. When the bucket is empty, it shows **End** and the dispenser stops.
+5. **Update.** On boot the ESP32 creates its own WiFi network and serves a small web page for setting the ball count.
+## Hardware
+ 
+| Component | Purpose |
+|-----------|---------|
+| ESP32 development board | Main controller, WiFi access point, onboard NeoPixel status LED |
+| Ultrasonic sensor (TRIG/ECHO) | Detects the wave that triggers a dispense |
+| Servo motor | Releases balls from the bucket into the drop chamber |
+| 4D Systems uLCD (Goldelox, 128x128) | Displays the remaining ball count |
+| Breadboard and jumper wires | Circuit connections |
+| Ball bucket, mounted at a tilt | Lets balls roll toward the cutout and into the drop chamber |
+ 
+## Pin Connections
+ 
+| Signal | ESP32 Pin |
+|--------|-----------|
+| Servo signal | 3 |
+| uLCD reset | 4 |
+| Ultrasonic TRIG | 6 |
+| Ultrasonic ECHO | 7 |
+| Onboard NeoPixel LED | 8 |
+| uLCD serial (RX / TX) | 21 / 22 |
+ 
+See the circuit diagram above for the full wiring.
+ 
+## Software Setup
+ 
+### Requirements
+ 
+- [Arduino IDE](https://www.arduino.cc/en/software) with ESP32 board support installed
+- The following libraries:
+  - `ESP32Servo`
+  - `Adafruit NeoPixel`
+  - `Goldelox_Serial_4DLib` (4D Systems serial library for the uLCD)
+  - `WiFi`, `Preferences` (included with the ESP32 board package)
+### Upload
+ 
+1. Clone or download this repository.
+2. Open the `.ino` sketch in the Arduino IDE.
+3. Select your ESP32 board and port.
+4. Click **Upload**.
+### Network credentials
+ 
+The sketch creates a WiFi network with a default name and password defined near the top of the code:
+ 
+```cpp
+const char *ssid = "yourAP";
+const char *password = "12345678";
+```
+ 
+Change these before deploying if you want your own network name and password.
+ 
+## Using the Control Panel
+ 
+1. Power on the dispenser and wait a few seconds for the display to initialize.
+2. On your phone or laptop, join the WiFi network named in the sketch (default: `yourAP`).
+3. Open a browser and go to the IP address the ESP32 prints over Serial on boot (typically `192.168.4.1`).
+4. Enter one of the following and press **Submit**:
+| Input | Result |
+|-------|--------|
+| A number (for example `50`) | Sets the ball count to that number |
+| `R` | Resets the count to 0 |
+ 
+The page also shows the current count and the last message received. Because the count is stored in non-volatile memory, it stays accurate even after the dispenser is powered off.
+ 
+## Design Notes and Challenges
+ 
+- **Servo instead of a helix.** We originally designed the dispenser as an attachment for a standard range ball bucket, so a servo-driven drop chamber fit better than a helix conveyor.
+- **Jamming.** We planned a 3D printed funnel to keep balls from jamming, but the printers available to us could not produce it. Instead, we mounted the bucket at a tilt so balls naturally roll down to the cutout and into the drop chamber.
+- **Power.** We wanted the project to run on battery power but ran out of time. The change itself is simple, and it would make the project truly portable.
+## Future Improvements
+ 
+- Battery power for full portability
+- Switch from WiFi to **Bluetooth** for the control interface, since WiFi can be unreliable out on the range
+- **Swing feedback** from the sound of the shot (pure, shank, top, and so on)
+- 3D printed drop chamber, breadboard casing, and funnel to minimize jamming
+## Credits
+ 
+Built by **Kaushik Vemulapalli** and **Daniel Ni** as a class project at Georgia Tech.
+ 
+The servo code started from the [Sweep example](https://github.com/jkb-git/ESP32Servo/blob/master/examples/Sweep/Sweep.ino) in the ESP32Servo library, but has since been changed significantly.
